@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - apk-mvp-build
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
