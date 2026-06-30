@@ -50,3 +50,5 @@ Because this is a debug APK, Android may ask you to allow installation from unkn
 `1.0.0` MVP prompt-builder.
 
 Future versions can add direct image upload, style presets, saved icon projects, export folders, and API-powered generation.
+
+Build trigger: PR APK artifact.
