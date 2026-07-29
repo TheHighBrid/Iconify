@@ -2,28 +2,12 @@
   "name": "iconify",
   "version": "0.1.0",
   "private": true,
-  "description": "Turn flat logos into premium inflated 3D app icon prompts and previews.",
+  "description": "Premium app icon generator for cohesive inflated 3D app icons.",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "start": "python3 -m http.server 4173 --directory .",
+    "dev": "python3 -m http.server 4173 --directory .",
+    "build": "rm -rf dist && mkdir -p dist/src && cp index.html dist/ && cp src/main.js src/styles.css dist/src/"
   },
-  "dependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "typescript": "latest"
-  },
-  "devDependencies": {
-    "eslint": "latest",
-    "eslint-config-next": "latest",
-    "tailwindcss": "^3.4.17",
-    "postcss": "latest",
-    "autoprefixer": "latest"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }

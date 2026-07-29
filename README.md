@@ -1,34 +1,59 @@
 # Iconify
 
-Iconify is a premium creative web app for turning flat logos into polished prompts for standalone, front-facing, inflated 3D app icons.
+Iconify is an Android app that turns uploaded app icons or logo images into standalone bubbly 3D inflated-style PNG renders.
 
-## Features
+This is no longer a prompt-helper app. The APK now performs local bitmap processing inside the app.
 
-- Logo upload with instant local preview
-- Brand-aware Iconify prompt generation
-- Optional style notes for creative direction
-- Prompt copy workflow for image-generation tools
-- Placeholder result grid for future generated icon outputs
+## What the APK does
 
-## Local Setup
+- Upload an icon image from your Android device
+- Crop and center the logo/icon automatically
+- Render a bubbly inflated 3D-style version locally
+- Add soft edge depth, gloss, studio shadow, and subtle texture
+- Preview the output inside the app
+- Save the generated PNG to the gallery
+- Share the generated PNG from the app
+- Display issues/fixes inside the APK itself
+
+## Best input
+
+Use a clean transparent PNG app icon or logo. JPGs and screenshots can work, but transparent PNGs give the best result.
+
+## Build the APK with GitHub Actions
+
+1. Go to the repository on GitHub.
+2. Open the **Actions** tab.
+3. Select **Build Android APK**.
+4. Open the latest successful workflow run.
+5. Download the artifact named **iconify-debug-apk**.
+6. Unzip it and install `app-debug.apk` on your Android phone.
+
+## Build locally
+
+Requirements:
+
+- Android Studio, or Android SDK command-line tools
+- Java 17
+- Gradle 8.10.2+
+
+Run:
 
 ```bash
-npm install
-npm run dev
+gradle :app:assembleDebug --no-daemon
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to use the studio.
+The APK will be created here:
 
-## Project Structure
-
-```text
-src/app             Next.js App Router pages and layout
-src/components      Upload, prompt, and result UI
-src/lib             Prompt and generation request helpers
-src/styles          Global Tailwind CSS entrypoint
-public              Static assets
+```bash
+app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Image Generation Roadmap
+## Install on Android
 
-Iconify currently prepares high-quality prompts and logo context. The next milestone is connecting `src/lib/imageGeneration.ts` to an image-generation API so the app can return downloadable icon assets directly.
+Because this is a debug APK, Android may ask you to allow installation from unknown sources. After allowing it, tap the APK again to install.
+
+## Current version
+
+`1.1.0` local renderer MVP.
+
+Future versions can add stronger geometric deformation, batch generation, style presets, background controls, project history, and optional API-powered generation.
