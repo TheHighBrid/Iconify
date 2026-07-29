@@ -1,28 +1,59 @@
 # Iconify
 
-Iconify is a premium app-icon transformation app. It converts app logos, app icon screenshots, or app icon references into separate, standalone, front-facing inflated 3D icons with a cohesive high-end visual system.
+Iconify is an Android app that turns uploaded app icons or logo images into standalone bubbly 3D inflated-style PNG renders.
 
-## Purpose
+This is no longer a prompt-helper app. The APK now performs local bitmap processing inside the app.
 
-Iconify preserves the original app logo shape, core symbol, color palette, and visual identity while rendering it as a soft, air-filled, rounded, glossy, mature 3D app icon.
+## What the APK does
 
-## Core behavior
+- Upload an icon image from your Android device
+- Crop and center the logo/icon automatically
+- Render a bubbly inflated 3D-style version locally
+- Add soft edge depth, gloss, studio shadow, and subtle texture
+- Preview the output inside the app
+- Save the generated PNG to the gallery
+- Share the generated PNG from the app
+- Display issues/fixes inside the APK itself
 
-- Treat each uploaded app icon, logo, or screenshot as a target source.
-- Generate one separate standalone square image per target source by default.
-- Never create a grid, collage, or grouped image unless the user explicitly asks for one.
-- Preserve the recognizable symbol, silhouette, colors, and brand identity.
-- Keep every result centered, front-facing, straight-on, cleanly framed, high-definition, and free of labels or watermarks.
+## Best input
 
-## Development
+Use a clean transparent PNG app icon or logo. JPGs and screenshots can work, but transparent PNGs give the best result.
+
+## Build the APK with GitHub Actions
+
+1. Go to the repository on GitHub.
+2. Open the **Actions** tab.
+3. Select **Build Android APK**.
+4. Open the latest successful workflow run.
+5. Download the artifact named **iconify-debug-apk**.
+6. Unzip it and install `app-debug.apk` on your Android phone.
+
+## Build locally
+
+Requirements:
+
+- Android Studio, or Android SDK command-line tools
+- Java 17
+- Gradle 8.10.2+
+
+Run:
 
 ```bash
-npm install
-npm run dev
+gradle :app:assembleDebug --no-daemon
 ```
 
-Build the production app with:
+The APK will be created here:
 
 ```bash
-npm run build
+app/build/outputs/apk/debug/app-debug.apk
 ```
+
+## Install on Android
+
+Because this is a debug APK, Android may ask you to allow installation from unknown sources. After allowing it, tap the APK again to install.
+
+## Current version
+
+`1.1.0` local renderer MVP.
+
+Future versions can add stronger geometric deformation, batch generation, style presets, background controls, project history, and optional API-powered generation.
