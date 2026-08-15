@@ -31,7 +31,9 @@ public final class IconProcessor {
         Paint softEdge = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
         RectF bigger = new RectF(-18, -10, size + 18, size + 18);
         softEdge.setAlpha(150);
-        canvas.drawBitmap(tint(icon, 0.82f), null, bigger, softEdge);
+        Bitmap edge = tint(icon, 0.82f);
+        canvas.drawBitmap(edge, null, bigger, softEdge);
+        edge.recycle();
 
         Paint main = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
         canvas.drawBitmap(icon, 0, 0, main);
