@@ -23,6 +23,8 @@ import android.widget.Toast;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     private static final int PICK_IMAGE = 701;
@@ -35,9 +37,14 @@ public class MainActivity extends Activity {
     private ImageView sourcePreview;
     private ImageView resultPreview;
     private TextView status;
+    private Button renderButton;
+    private Button saveButton;
+    private Button shareButton;
     private Bitmap sourceBitmap;
     private Bitmap resultBitmap;
     private Uri savedUri;
+    private final ExecutorService renderer = Executors.newSingleThreadExecutor();
+    private int renderGeneration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,17 +79,17 @@ public class MainActivity extends Activity {
         Button pick = button("Upload icon image");
         root.addView(pick, fullParams(dp(12), 0));
 
-        Button render = button("Generate bubbly 3D inflated icon");
-        root.addView(render, fullParams(dp(10), 0));
+        renderButton = button("Generate bubbly 3D inflated icon");
+        root.addView(renderButton, fullParams(dp(10), 0));
 
         resultPreview = preview("Rendered result preview");
         root.addView(resultPreview, fullParams(dp(18), 0));
 
-        Button save = button("Save PNG to gallery");
-        root.addView(save, fullParams(dp(12), 0));
+        saveButton = button("Save PNG to gallery");
+        root.addView(saveButton, fullParams(dp(12), 0));
 
-        Button share = button("Share PNG");
-        root.addView(share, fullParams(dp(10), 0));
+        shareButton = button("Share PNG");
+        root.addView(shareButton, fullParams(dp(10), 0));
 
         status = text("Status: upload an icon to begin.", 14, paper, Typeface.NORMAL);
         status.setPadding(dp(16), dp(16), dp(16), dp(16));
@@ -97,9 +104,11 @@ public class MainActivity extends Activity {
         root.addView(fixes, fullParams(dp(14), 0));
 
         pick.setOnClickListener(v -> openPicker());
-        render.setOnClickListener(v -> renderNow());
-        save.setOnClickListener(v -> saveNow());
-        share.setOnClickListener(v -> shareNow());
+        renderButton.setOnClickListener(v -> renderNow());
+        saveButton.setOnClickListener(v -> saveNow());
+        shareButton.setOnClickListener(v -> shareNow());
+
+        setOutputActionsEnabled(false);
 
         setContentView(scroll);
     }
@@ -117,17 +126,24 @@ public class MainActivity extends Activity {
         if (requestCode != PICK_IMAGE || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         try {
             Uri uri = data.getData();
-            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            InputStream input = getContentResolver().openInputStream(uri);
-            Bitmap decoded = BitmapFactory.decodeStream(input);
-            if (input != null) input.close();
+            int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            if ((takeFlags & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+                getContentResolver().takePersistableUriPermission(uri, takeFlags);
+            }
+            Bitmap decoded = decodeSampled(uri, 2048);
             if (decoded == null) throw new IllegalArgumentException("Could not decode image");
+            recycle(sourceBitmap);
+            recycle(resultBitmap);
+            renderGeneration++;
             sourceBitmap = decoded.copy(Bitmap.Config.ARGB_8888, false);
+            if (sourceBitmap != decoded) decoded.recycle();
             sourcePreview.setImageBitmap(sourceBitmap);
             resultBitmap = null;
             savedUri = null;
             resultPreview.setImageBitmap(null);
             resultPreview.setBackground(card(24, Color.rgb(31, 30, 29), Color.rgb(60, 56, 50), 1));
+            setOutputActionsEnabled(false);
+            renderButton.setEnabled(true);
             status.setText("Status: icon loaded. Tap generate to render the inflated 3D version locally.");
         } catch (Exception e) {
             status.setText("Issue: image could not be loaded.\nFix: try a PNG or JPG from your gallery.\nDetails: " + e.getMessage());
@@ -139,17 +155,47 @@ public class MainActivity extends Activity {
             toast("Upload an icon first");
             return;
         }
+        status.setText("Status: rendering inflated icon locally...");
+        renderButton.setEnabled(false);
+        setOutputActionsEnabled(false);
+        final int generation = ++renderGeneration;
+        final Bitmap input;
         try {
-            status.setText("Status: rendering inflated icon locally...");
-            resultBitmap = IconProcessor.render(sourceBitmap);
-            resultPreview.setImageBitmap(resultBitmap);
-            savedUri = null;
-            status.setText("Done: generated a bubbly inflated 3D-style icon inside the APK. You can save or share the PNG now.");
-        } catch (OutOfMemoryError e) {
+            input = sourceBitmap.copy(Bitmap.Config.ARGB_8888, false);
+            if (input == null) throw new IllegalStateException("Could not prepare image for rendering");
+        } catch (OutOfMemoryError | RuntimeException error) {
+            renderButton.setEnabled(true);
             status.setText("Issue: image was too large for memory.\nFix: try a smaller icon file or screenshot crop.");
-        } catch (Exception e) {
-            status.setText("Issue: render failed.\nFix: try a cleaner PNG icon with transparent background.\nDetails: " + e.getMessage());
+            return;
         }
+        renderer.execute(() -> {
+            try {
+                Bitmap rendered = IconProcessor.render(input);
+                runOnUiThread(() -> {
+                    if (generation != renderGeneration || isFinishing() || isDestroyed()) {
+                        recycle(rendered);
+                        return;
+                    }
+                    recycle(resultBitmap);
+                    resultBitmap = rendered;
+                    resultPreview.setImageBitmap(resultBitmap);
+                    savedUri = null;
+                    renderButton.setEnabled(true);
+                    setOutputActionsEnabled(true);
+                    status.setText("Done: generated a bubbly inflated 3D-style icon inside the APK. You can save or share the PNG now.");
+                });
+            } catch (OutOfMemoryError | RuntimeException error) {
+                runOnUiThread(() -> {
+                    if (generation != renderGeneration || isFinishing() || isDestroyed()) return;
+                    renderButton.setEnabled(true);
+                    status.setText(error instanceof OutOfMemoryError
+                            ? "Issue: image was too large for memory.\nFix: try a smaller icon file or screenshot crop."
+                            : "Issue: render failed.\nFix: try a cleaner PNG icon with transparent background.\nDetails: " + error.getMessage());
+                });
+            } finally {
+                recycle(input);
+            }
+        });
     }
 
     private void saveNow() {
@@ -193,17 +239,56 @@ public class MainActivity extends Activity {
         }
         Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
         if (uri == null) throw new IllegalStateException("Gallery insert returned null");
-        OutputStream out = getContentResolver().openOutputStream(uri);
-        if (out == null) throw new IllegalStateException("Could not open gallery output stream");
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
-        out.flush();
-        out.close();
+        try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+            if (out == null) throw new IllegalStateException("Could not open gallery output stream");
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
+                throw new IllegalStateException("PNG encoder failed");
+            }
+        } catch (Exception error) {
+            getContentResolver().delete(uri, null, null);
+            throw error;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             values.clear();
             values.put(MediaStore.Images.Media.IS_PENDING, 0);
             getContentResolver().update(uri, values, null, null);
         }
         return uri;
+    }
+
+    private Bitmap decodeSampled(Uri uri, int maxDimension) throws Exception {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            BitmapFactory.decodeStream(input, null, bounds);
+        }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        while (Math.max(bounds.outWidth / options.inSampleSize, bounds.outHeight / options.inSampleSize) > maxDimension) {
+            options.inSampleSize *= 2;
+        }
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            return BitmapFactory.decodeStream(input, null, options);
+        }
+    }
+
+    private void setOutputActionsEnabled(boolean enabled) {
+        saveButton.setEnabled(enabled);
+        shareButton.setEnabled(enabled);
+    }
+
+    private void recycle(Bitmap bitmap) {
+        if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
+    }
+
+    @Override
+    protected void onDestroy() {
+        renderGeneration++;
+        renderer.shutdownNow();
+        recycle(sourceBitmap);
+        recycle(resultBitmap);
+        super.onDestroy();
     }
 
     private ImageView preview(String label) {
